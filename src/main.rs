@@ -1,22 +1,26 @@
-use std::{env, error::Error, fmt};
+use anyhow;
+use std::env;
+use thiserror;
 
 #[derive(Debug)]
 enum Token {
     Integer(i64),
     Operator(String),
 }
+#[derive(thiserror::Error, Debug)]
+#[error("token error")]
+pub struct TokenError;
 
-#[derive(Debug)]
-pub struct TokenError {
-    err: String,
+#[derive(thiserror::Error, Debug)]
+#[error("unknown token: {token}")]
+pub struct UnknownTokenError {
+    token: String,
 }
 
-impl Error for TokenError {}
-
-impl fmt::Display for TokenError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Tokenized error: {}", self.err)
-    }
+#[derive(thiserror::Error, Debug)]
+#[error("unknown operator: {operator}")]
+pub struct UnknownOperatorError {
+    operator: String,
 }
 
 fn is_digit(c: &char) -> bool {
@@ -26,7 +30,7 @@ fn is_digit(c: &char) -> bool {
     }
 }
 
-fn tokenize(input_str: &String) -> Vec<Token> {
+fn tokenize(input_str: &String) -> anyhow::Result<Vec<Token>> {
     let mut result = vec![];
     let input_vec: Vec<char> = input_str.to_owned().chars().collect();
 
@@ -56,13 +60,16 @@ fn tokenize(input_str: &String) -> Vec<Token> {
                     }
                 }
             }
-            _ => eprintln!("Tokenize error, {}", c),
+            _ => Err(UnknownTokenError {
+                token: c.to_string(),
+            })
+            .unwrap(),
         }
     }
-    result
+    Ok(result)
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let argv: Vec<String> = env::args().collect();
     if argv.len() != 2 {
         panic!("Invalid arguments number.");
@@ -72,14 +79,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!(".globl main");
     println!("main:");
     // println!("  mov rax, {}", argv[1]);
-    let tokens = tokenize(&argv[1]);
+    let tokens = tokenize(&argv[1]).expect("failed to tokenize");
     let first_token = match tokens[0] {
         Token::Integer(n) => n,
-        _ => {
-            return Err(TokenError {
-                err: "first token must be integer.".to_string(),
-            })?
-        }
+        _ => return Err(TokenError)?,
     };
     println!("  mov rax, {}", first_token);
     for token in tokens[1..].iter() {
@@ -93,16 +96,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                     print!("  sub rax, ")
                 }
                 _ => {
-                    return Err(TokenError {
-                        err: format!("Unknown operator: {}", s),
+                    return Err(UnknownOperatorError {
+                        operator: s.to_string(),
                     })?
                 }
             },
-            _ => {
-                return Err(TokenError {
-                    err: format!("Unknown token, {:?}", token),
-                })?
-            }
         }
     }
     // eprintln!("{:?}", tokens);

@@ -26,7 +26,6 @@ pub struct UnknownOperatorError {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Token {
     pub kind: TokenKind,
-    // pub next: Option<Box<Token>>,
     pub next: Option<Box<Token>>,
     pub val: Option<i64>,
     pub str: Option<String>,
